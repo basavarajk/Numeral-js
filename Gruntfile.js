@@ -42,6 +42,33 @@ module.exports = function(grunt) {
             numeral = numeral.substr(0, index) + '\n' + formats + numeral.substr(index);
 
             grunt.file.write('numeral.js', numeral);
+        },
+        compileNumeralES6 = function() {
+            // regex to find the content inside the UMD wrapper
+            var regexp = /\}\(this, function \(\) \{\s([\s\S]+)(?:\s\}\)\);)/;
+            var headerRegexp = /(^\/\*[\s\S]*?\*\/)/;
+            var numeral = grunt.file.read('src/numeral.js');
+            var formats = grunt.file.read('temp/formats.js');
+            var index;
+
+            var header = numeral.match(headerRegexp)[1];
+
+            // adjust indentation (es6 modules aren't wrapped in IIFEs/UMDs
+            numeral = numeral.replace(/\n    /g, '\n');
+
+            index = numeral.indexOf('return numeral;');
+
+            numeral = numeral.substr(0, index) + '\n' + formats + numeral.substr(index);
+
+            numeral = numeral.match(regexp)[1];
+
+            // replace the return with an ES6/ES2015 default export
+            numeral = numeral.replace('return numeral;', 'export default numeral;');
+
+            // prepend the header
+            numeral = header + '\n\n' + numeral;
+
+            grunt.file.write('numeral.es6.js', numeral);
         };
 
     require('load-grunt-tasks')(grunt);
@@ -161,11 +188,13 @@ module.exports = function(grunt) {
     grunt.registerMultiTask('compile', compileType);
 
     grunt.registerTask('compile:numeral', compileNumeral);
+    grunt.registerTask('compile:numeral-es6', compileNumeralES6);
 
     grunt.registerTask('build', [
         'jshint',
         'compile',
         'compile:numeral',
+        'compile:numeral-es6',
         'copy'
     ]);
 
